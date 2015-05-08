@@ -1,0 +1,116 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Socket.IO chat</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font: 13px Helvetica, Arial; }
+      form { background: #000; padding: 3px; position: fixed; bottom: 0; width: 100%; }
+      form input { border: 0; padding: 10px; width: 90%; margin-right: .5%; }
+      form button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px; }
+      #messages { list-style-type: none; margin: 0; padding: 0; }
+      #messages li { padding: 5px 10px; }
+      #messages li:nth-child(odd) { background: #eee; }
+      .active {font-weight: bold;}
+    </style>
+  </head>
+  <body>
+    <h1>Users:</h1>
+    <ul id="users">
+    </ul>
+    <h1>Chat:</h1>
+    <ul id="messages"></ul>
+    <form id="new_message" action="">
+      <input id="input_message" autocomplete="off" /><button>Send</button>
+    </form>
+    <script src="/socket.io.js"></script>
+    <script src="/jquery-1.11.1.js"></script>
+    <script>
+
+        var socket = io()
+        var users = {}
+        var current_dialog
+        var chats = {}
+        var current_name = "unknown"
+
+        $('.enter-dialog').live('click', function(e) {
+            current_dialog = $(this).data('user')
+            $('.enter-dialog').removeClass('active')
+            $(this).addClass('active')
+            if (!chats[current_dialog]) {
+                chats[current_dialog] = []
+            }
+            render_chat()
+        })
+
+        var render_users = function() {
+            var html_str = ''
+            $.each(users, function(user) {
+                html_str += '<li class="enter-dialog" data-user="'+user+'">'+user+'</li>'
+            })
+            $('#users').html(html_str)
+        }
+
+        var render_chat = function() {
+            var html_str = ''
+            $.each(chats[current_dialog], function(k, v) {
+                html_str += '<li>'+v+'</li>'
+            })
+            $('#messages').html(html_str)
+        }
+
+        $(function() {
+
+            socket.on("auth_success", function(users_json) {
+                console.log("auth_success " + users_json)
+                users = {}
+                var users_list = JSON.parse(users_json)
+                $.each(users_list, function(k, v) {
+                    users[v] = true
+                })
+                render_users()
+            })
+
+            socket.on("new_user", function(name) {
+                console.log("new_user " + name)
+                users[name] = true
+                render_users()
+                console.log("new_user " + name)
+            })
+
+            socket.on("user_disconnect", function(name) {
+                console.log("user_disconnect " + name)
+                delete users[name]
+                render_users()
+            })
+
+            socket.on('chat message', function(json_str) {
+                var json_data = JSON.parse(json_str)
+                var author_name = json_data.name
+                if (!chats[author_name]) {
+                    chats[author_name] = []
+                }
+                chats[author_name].push(json_data.message)
+                if (author_name == current_dialog) {
+                    render_chat()
+                }
+            });
+
+            var new_name = prompt("Enter your name")
+
+            if (!new_name) {
+                return
+            }
+
+            $("form").submit(function(e) {
+                var new_message = $('#input_message').val()
+                socket.emit("chat_message", JSON.stringify({author: current_name, message: new_message}))
+                chats[current_dialog].push(new_message)
+            })
+            socket.emit("auth", new_name)
+            current_name = new_name
+
+        });
+    </script>
+  </body>
+</html>
