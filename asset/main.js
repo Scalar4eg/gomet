@@ -3,13 +3,13 @@ var socket = io()
 $(function() {
 
     var recv_types = [
-        "auth_response",
-         "new_contact",
+        "auth_response", //+
+         "update_contact",
          "delete_contact",
          "message_recv",
          "message_accepted",
          "message_read",
-         "contact_status",
+         "contact_status", //+
     ]
 
     for (var i in recv_types) {
